@@ -1,29 +1,34 @@
-# Publishing the Toll Booth Manager on the Internet with Firebase
+# Publishing the Toll Booth Manager on the Internet (Firebase, and a free GitHub alternative)
 
 This document is the complete, honest guide for putting the real-time web
-application on a public `https://` address with a **free Google account**.
+application on a public `https://` address with a **free Google account**
+(or, for the free demo, with a GitHub account only).
 It also lists every important limitation, so nothing on the public link can
 mislead an examiner, a teacher or a visitor.
 
-Two ways are described. Choose **one**:
+Three ways are described. Choose according to your Firebase plan, and remember that the
+two free ones (B and C) are demos, not the real Java backend:
 
-| | Option A — the real application | Option B — the free static demo |
-|---|---|---|
-| Link shape | `https://YOUR-PROJECT.web.app` | `https://YOUR-PROJECT.web.app` |
-| Backend | the real **Java** server on Cloud Run | none: `demo-backend.js` runs in the browser |
-| Login | real (PBKDF2 hashes, session tokens, audit file) | checked in the browser, **not** real security |
-| Cost | needs a Cloud Billing account (free quota is normally enough) | free plan, no card |
-| Tools | `gcloud` + `firebase` CLI | `firebase` CLI only |
-| Use it for | the real project link of the report | a quick, always-on demo that never sleeps |
+| | Option A — the real application | Option B — the free static demo | Option C — GitHub Pages |
+|---|---|---|---|
+| Link shape | `https://YOUR-PROJECT.web.app` | `https://YOUR-PROJECT.web.app` | `https://USER.github.io/REPO/` |
+| Backend | the real **Java** server on Cloud Run | none: `demo-backend.js` runs in the browser | none: the same browser backend |
+| Login | real (PBKDF2 hashes, session tokens, audit file) | checked in the browser, **not** real security | checked in the browser, **not** real security |
+| Cost | needs a Cloud Billing account (free quota is normally enough) | free plan, no card | free, and no card at all |
+| Tools | `gcloud` + `firebase` CLI | `firebase` CLI only | nothing, GitHub does it |
+| Use it for | the real project link of the report | a quick, always-on demo that never sleeps | a second free demo link, same demo as option B |
 
-> **Why are there two options?** Firebase Hosting can only serve **static
-> files** (HTML, CSS, JavaScript, images). It cannot run a Java program. To keep
-> the real Java backend, the page must be served by Hosting and every `/api/**`
-> request forwarded to **Cloud Run**, which is exactly what option A does.
+> **Why are there several options?** Firebase Hosting can only serve **static
+> files** (HTML, CSS, JavaScript, images) and GitHub Pages has the same
+> restriction: neither of them can run a Java program. To keep the real Java
+> backend, the page must be served by Hosting and every `/api/**` request
+> forwarded to **Cloud Run**, which is exactly what option A does. Options B and
+> C exist for the free plan: they publish the same user interface with a browser
+> backend and mark it clearly as a demo.
 
 ---
 
-## 0. What the two options do with your files
+## 0. What the options do with your files
 
 ```
 deploy/firebase/
@@ -38,15 +43,21 @@ deploy/firebase/
     demo-backend.js       the offline demo backend (source of truth)
 Dockerfile                builds the Java application into a container (Cloud Run)
 .dockerignore             keeps the container build small
+.github/workflows/pages.yml   option C : publishes public-demo on GitHub Pages
+tools/demo-smoke-test.js  optional browser test of the static demo build
 ```
 
 Nothing in these files contains a password or a key, so the whole folder can be
 committed and pushed. `.firebaserc`, `.firebase/` and `firebase-debug.log` stay
 outside git (see `.gitignore`).
 
+Option C is the same static demo as option B, published by GitHub instead of
+Firebase. It is included because it costs nothing at all and needs no tool on
+your computer — but it cannot run Java either, so it is only a demo link.
+
 ---
 
-## 1. One-time preparation (both options)
+## 1. One-time preparation (options A and B)
 
 1. Create the project:
    * open <https://console.firebase.google.com> → **Add project** → give it a
@@ -232,7 +243,28 @@ node tools/demo-smoke-test.js                                         # terminal
 
 ---
 
-## 4. Updating the site later
+## 4. Option C — the same demo on GitHub Pages (free, no extra account)
+
+The workflow [`.github/workflows/pages.yml`](../.github/workflows/pages.yml)
+publishes `deploy/firebase/public-demo` (the page + `demo-backend.js`, with the
+DEMO MODE badge) to GitHub Pages. GitHub Pages is static only, exactly like
+Firebase Hosting, so this link shows the demo and **not** the Java backend.
+
+Two taps in the browser, no commands:
+
+1. open `https://github.com/USER/REPOSITORY/settings/pages`;
+2. under **Build and deployment → Source**, choose **GitHub Actions**;
+3. open the **Actions** tab → *Publish the static demo* → **Run workflow** and
+   pick the branch `arena/c4ea8c53-toll-booth-manager` (or run it after the
+   branch is merged into `main`, where it also runs by itself on every push).
+
+The link is then `https://USER.github.io/REPOSITORY/` and it must show the
+DEMO MODE badge. Every later push to `main` (or to an `arena/**` branch)
+publishes again automatically.
+
+---
+
+## 5. Updating the site later
 
 After ANY change in `resources/static/` (page, styles or script):
 
@@ -243,7 +275,7 @@ FIREBASE_PROJECT=YOUR-PROJECT-ID ./deploy-demo.sh # option B, or
 FIREBASE_PROJECT=YOUR-PROJECT-ID ./deploy-full.sh # option A (Cloud Run + Hosting)
 ```
 
-## 5. Security rules to keep
+## 6. Security rules to keep
 
 * Never put a password, token or key in the repository — the deploy scripts only
   use the project id, which is public information.
@@ -254,7 +286,7 @@ FIREBASE_PROJECT=YOUR-PROJECT-ID ./deploy-full.sh # option A (Cloud Run + Hostin
   without a token; the Content Security Policy keeps the page on its own files.
 * Do not publish real vehicle, owner or payment data on a coursework link.
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Message | Reason | Fix |
 |---|---|---|
@@ -264,11 +296,12 @@ FIREBASE_PROJECT=YOUR-PROJECT-ID ./deploy-full.sh # option A (Cloud Run + Hostin
 | `Error: Permission denied` / `billing account` when deploying to Cloud Run | the project has no Cloud Billing account | link one (Blaze plan), then redeploy |
 | `Hosting rewrite to a Cloud Run service in region X is not supported` | the region cannot be used in a rewrite | use `asia-south1` or `us-central1` |
 | `404 Not Found` from Cloud Run | the service was deployed in another region or another project | `gcloud run services list --project YOUR-PROJECT-ID` |
-| Preview shows **sandbox not found** | that is the Arena preview window of the sandbox, not the application | the public link from Firebase is the way to share it |
+| Preview shows **sandbox not found** | that is the Arena preview window of the sandbox, not the application | share the Firebase (or GitHub Pages) link instead |
+| `Resource not accessible by integration` when a tool tries to enable Pages | GitHub Pages is not switched on for the repository | open *Settings → Pages → Source: GitHub Actions* once (see §4); no billing is involved |
 
 ---
 
-## 7. Ten lines you can say in the viva about the deployment
+## 8. Ten lines you can say in the viva about the deployment
 
 1. Firebase Hosting serves the interface; it can only serve static files, so it
    cannot run Java.
@@ -288,4 +321,5 @@ FIREBASE_PROJECT=YOUR-PROJECT-ID ./deploy-full.sh # option A (Cloud Run + Hostin
    folder is temporary, which is exactly why the two demo accounts always exist.
 10. On the free plan the same page also runs as a browser demo
     (`demo-backend.js`), clearly marked DEMO MODE, so the interface can be shown
-    even without a billing account.
+    even without a billing account — on Firebase Hosting (option B) or on GitHub
+    Pages (option C).

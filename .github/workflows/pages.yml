@@ -1,0 +1,64 @@
+name: Publish the static demo
+
+# Publishes the offline demo build (deploy/firebase/public-demo) on GitHub Pages,
+# which is free and needs no billing account. Firebase Hosting is still the
+# documented deployment (docs/DEPLOY_PUBLIC.md); this workflow is simply a second
+# public link for the same static demo copy, so the page can be shown on a phone
+# without a Firebase account.
+#
+# What is published : the unchanged page (index.html, app.js, styles.css) plus
+# demo-backend.js, which answers every /api/... call inside the browser. The page
+# shows a DEMO MODE badge, because no Java server runs here. GitHub Pages cannot
+# run Java either - for the real backend use Firebase Hosting + Cloud Run
+# (option A in docs/DEPLOY_PUBLIC.md).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'arena/**'
+    paths:
+      - 'resources/static/**'
+      - 'deploy/firebase/**'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the demo folder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Copy the page next to the demo backend
+        run: bash deploy/firebase/sync-public.sh
+
+      - name: Prepare Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload the demo folder
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: deploy/firebase/public-demo
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

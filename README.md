@@ -326,7 +326,11 @@ Firebase Hosting can only serve static files, so option A forwards every
 `/api/**` request to the Java server running on Cloud Run (`asia-south1`), while
 option B publishes the same page with a browser demo backend and shows a
 **DEMO MODE** badge. Both are explained step by step, including what may
-mislead, in [`docs/DEPLOY_PUBLIC.md`](docs/DEPLOY_PUBLIC.md).
+mislead, in [`docs/DEPLOY_PUBLIC.md`](docs/DEPLOY_PUBLIC.md). A third, purely
+free option is included as well: the workflow
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) publishes the same
+static demo on GitHub Pages (`https://USER.github.io/REPOSITORY/`) after GitHub
+Pages is switched on once in *Settings → Pages → Source: GitHub Actions*.
 
 ### The console application
 
