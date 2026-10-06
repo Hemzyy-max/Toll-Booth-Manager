@@ -1,0 +1,16 @@
+# Compiled Java class files
+*.class
+
+# Compiled output folder produced by  javac -d out
+out/
+build/
+bin/
+
+# Transaction data file created automatically at run time
+transactions.txt
+
+# Editor / IDE folders
+.idea/
+.vscode/
+*.iml
+nbproject/
