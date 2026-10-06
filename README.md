@@ -182,9 +182,19 @@ Toll-Booth-Manager/
 │   ├── OOP_CONCEPTS.md                  <- every concept explained with code references
 │   ├── CLASS_EXPLANATIONS.md            <- explanation of every major class
 │   ├── REALTIME_WEB.md                  <- login system, notification centre, deployment
+│   ├── DEPLOY_PUBLIC.md                 <- publish it on Firebase, step by step (both ways)
 │   ├── SAMPLE_INPUT_OUTPUT.md           <- complete sample input and output
 │   └── VIVA_QUESTIONS.md                <- viva questions with answers
 │
+├── deploy/firebase/                     <- Firebase deployment (Hosting + Cloud Run rewrite)
+│   ├── firebase.json                    <- option A : /api/** -> the Cloud Run service
+│   ├── firebase.demo.json               <- option B : static demo, free plan
+│   ├── deploy-full.sh / deploy-demo.sh  <- the two deploy commands
+│   ├── sync-public.sh                   <- copies the page next to demo-backend.js
+│   └── demo-backend.js                  <- browser backend used by the free demo
+│
+├── Dockerfile                           <- builds the Java web app into a container (Cloud Run)
+├── tools/demo-smoke-test.js             <- optional browser test of the static demo
 ├── compile-and-run.sh / .bat            <- compile + run the CONSOLE application
 ├── run-web.sh / .bat                    <- compile + run the REAL TIME WEB application
 ├── README.md                            <- this file
@@ -300,6 +310,23 @@ from the browser (Cash / UPI / FASTag with the real rates and the FASTag
 discount); a **notification centre** that receives every payment, login and alert
 **instantly** (Server Sent Events); an audit log and user management for
 administrators. Full details: [`docs/REALTIME_WEB.md`](docs/REALTIME_WEB.md).
+
+### Putting it on a public link (Firebase)
+
+To share the application with a real `https://` address instead of a local one,
+the repository contains a ready made Firebase deployment:
+
+```bash
+cd deploy/firebase
+FIREBASE_PROJECT=your-project-id ./deploy-demo.sh   # free static demo, no backend
+FIREBASE_PROJECT=your-project-id ./deploy-full.sh   # the REAL Java backend on Cloud Run
+```
+
+Firebase Hosting can only serve static files, so option A forwards every
+`/api/**` request to the Java server running on Cloud Run (`asia-south1`), while
+option B publishes the same page with a browser demo backend and shows a
+**DEMO MODE** badge. Both are explained step by step, including what may
+mislead, in [`docs/DEPLOY_PUBLIC.md`](docs/DEPLOY_PUBLIC.md).
 
 ### The console application
 
@@ -668,6 +695,7 @@ demonstrated immediately:
 | [`docs/OOP_CONCEPTS.md`](docs/OOP_CONCEPTS.md) | Every OOP concept explained with the exact code from this project |
 | [`docs/CLASS_EXPLANATIONS.md`](docs/CLASS_EXPLANATIONS.md) | Explanation of every major class, its data members and its methods |
 | [`docs/REALTIME_WEB.md`](docs/REALTIME_WEB.md) | The web layer: architecture, SSE, login system and security, notification centre, REST API, deployment, viva questions |
+| [`docs/DEPLOY_PUBLIC.md`](docs/DEPLOY_PUBLIC.md) | Publishing on Firebase: Hosting + Cloud Run for the real Java backend, or the free static demo, with every limitation and a troubleshooting table |
 | [`docs/SAMPLE_INPUT_OUTPUT.md`](docs/SAMPLE_INPUT_OUTPUT.md) | Complete sample input and the real output of a full session |
 | [`docs/VIVA_QUESTIONS.md`](docs/VIVA_QUESTIONS.md) | 50 questions with short, exam ready answers |
 
@@ -683,6 +711,8 @@ demonstrated immediately:
 | The Rupee symbol shows as `?` | the console cannot print Unicode | the program automatically uses `Rs.`; or run with `-Dfile.encoding=UTF-8` (Windows: also `chcp 65001`) |
 | `transactions.txt` is missing | the program creates it at the first run, in the current folder | run the program from the project folder, or check the folder shown in option 8 |
 | Duplicate transaction ids after a restart | an old file was copied with a different name | the counter resumes from the saved records in `transactions.txt` |
+| The public Firebase link shows `DEMO MODE` | only option B (the free static demo) is deployed | deploy option A (`deploy-full.sh`) to run the real Java backend on Cloud Run |
+| `firebase deploy` says `must be logged in` | the CLI session expired | `firebase login` again (see [`docs/DEPLOY_PUBLIC.md`](docs/DEPLOY_PUBLIC.md)) |
 
 ---
 

@@ -419,6 +419,11 @@ in several simple ways:
    Platforms that set a `PORT` variable work without any change, because the
    launcher reads `PORT` first.
 
+4. **Firebase (Hosting + Cloud Run)** — a complete, step by step deployment is in
+   [`DEPLOY_PUBLIC.md`](DEPLOY_PUBLIC.md): Hosting serves the page and a rewrite
+   forwards `/api/**` to the Java container on Cloud Run (`asia-south1`), or, on
+   the free plan, the same page runs as a static demo with `demo-backend.js`.
+
 Deployment notes that matter for this application:
 
 * `0.0.0.0` and not `127.0.0.1`, otherwise the outside world cannot reach it.

@@ -20,3 +20,10 @@ nbproject/
 
 # Node modules (only used for the optional browser test of the web page)
 node_modules/
+
+# Firebase CLI state, logs and the generated deployment folders
+.firebase/
+firebase-debug.log*
+deploy/firebase/.firebaserc
+deploy/firebase/public/
+deploy/firebase/public-demo/

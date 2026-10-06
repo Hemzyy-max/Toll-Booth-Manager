@@ -1,0 +1,10 @@
+# Firebase CLI configuration
+# ---------------------------------------------------------------------------
+# Copy this file to  deploy/firebase/.firebaserc  and put your own project id
+# in it (find it with  firebase projects:list  or in the Firebase console).
+# ---------------------------------------------------------------------------
+{
+  "projects": {
+    "default": "PUT-YOUR-FIREBASE-PROJECT-ID-HERE"
+  }
+}

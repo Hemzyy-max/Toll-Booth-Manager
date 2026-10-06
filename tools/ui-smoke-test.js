@@ -12,7 +12,18 @@
        java -cp out tollbooth.web.WebLauncher --port 3000   # in another terminal
        node tools/ui-smoke-test.js
    ============================================================================ */
-const { JSDOM, VirtualConsole } = require('/tmp/uicheck/node_modules/jsdom');
+let jsdomModule = null;
+try {
+  jsdomModule = require('jsdom');
+} catch (error) {
+  try {
+    jsdomModule = require(process.env.JSDOM_PATH || '/tmp/uicheck/node_modules/jsdom');
+  } catch (secondError) {
+    console.error('jsdom is not installed. Run :  npm install jsdom');
+    process.exit(1);
+  }
+}
+const { JSDOM, VirtualConsole } = jsdomModule;
 const BASE = 'http://127.0.0.1:3000';
 
 const problems = [];

@@ -1,0 +1,14 @@
+# Keep the build context small : only tollbooth/ and resources/ are needed.
+.git
+.gitignore
+out
+build
+bin
+data
+docs
+deploy
+tools
+*.md
+*.bat
+transactions.txt
+node_modules
