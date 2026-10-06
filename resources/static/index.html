@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IoT Toll Booth Manager &middot; Live Control Room</title>
+    <meta name="description" content="Real time login, toll payment and notification centre for the IoT Based Toll Booth Manager System.">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- =====================================================================
+     LOGIN VIEW
+     ===================================================================== -->
+<main id="loginView" class="login-view">
+    <section class="login-card" aria-labelledby="loginTitle">
+        <div class="login-brand">
+            <div class="brand-mark" aria-hidden="true">TB</div>
+            <div>
+                <h1 id="loginTitle">IoT Based Toll Booth Manager</h1>
+                <p class="muted">Real time control room &middot; Core Java &middot; no database</p>
+            </div>
+        </div>
+
+        <form id="loginForm" autocomplete="on" novalidate>
+            <label class="field">
+                <span class="field-label">Username</span>
+                <input id="username" name="username" type="text" autocomplete="username"
+                       placeholder="admin or operator" required autofocus>
+            </label>
+
+            <label class="field">
+                <span class="field-label">Password</span>
+                <span class="password-wrap">
+                    <input id="password" name="password" type="password" autocomplete="current-password"
+                           placeholder="Your password" required>
+                    <button type="button" id="showPassword" class="ghost-small" aria-label="Show password">Show</button>
+                </span>
+            </label>
+
+            <p id="loginError" class="alert alert-danger" role="alert" hidden></p>
+
+            <button type="submit" id="loginBtn" class="btn btn-primary btn-block">
+                <span class="btn-label">Sign in</span>
+                <span class="spinner" hidden></span>
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <p id="loginHint" class="muted small">
+                First start creates <strong>admin / Admin@123</strong> and
+                <strong>operator / Operator@123</strong>. Change them after the first login.
+            </p>
+            <p class="muted small">
+                Passwords are stored as salted PBKDF2 hashes. Sessions use random tokens
+                with idle and absolute expiry.
+            </p>
+        </div>
+    </section>
+
+    <aside class="login-side" aria-hidden="true">
+        <h2>What this system does</h2>
+        <ul class="feature-list">
+            <li><span>RFID</span> An ESP-style reader identifies the vehicle, the tag is validated and looked up in the booth HashMap.</li>
+            <li><span>PAY</span> Cash, UPI or FASTag payment through the <em>PaymentProcessor</em> interface, with a printed receipt.</li>
+            <li><span>LIVE</span> Every payment, login and alert is pushed to all open browsers instantly with Server Sent Events.</li>
+            <li><span>SAFE</span> PBKDF2 passwords, brute force lockout, audit log file and role based access (ADMIN / OPERATOR).</li>
+        </ul>
+    </aside>
+</main>
+
+<!-- =====================================================================
+     APPLICATION VIEW
+     ===================================================================== -->
+<div id="appView" class="app" hidden>
+
+    <!-- ---------------- sidebar ---------------- -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+            <div class="brand-mark small" aria-hidden="true">TB</div>
+            <div class="sidebar-title">
+                <strong>Toll Booth</strong>
+                <span class="muted small">BOOTH-TN01 &middot; Chennai Bypass</span>
+            </div>
+        </div>
+
+        <nav id="navList" class="nav" aria-label="Main menu">
+            <button class="nav-item is-active" data-page="dashboard"><span class="nav-icon">&#9635;</span> Dashboard</button>
+            <button class="nav-item" data-page="payments"><span class="nav-icon">&#8377;</span> Toll payments</button>
+            <button class="nav-item" data-page="vehicles"><span class="nav-icon">&#9707;</span> Vehicles &amp; FASTag</button>
+            <button class="nav-item" data-page="notifications"><span class="nav-icon">&#9993;</span> Notification centre
+                <span class="nav-badge" id="navNotifCount" hidden>0</span>
+            </button>
+            <button class="nav-item nav-admin" data-page="audit" hidden><span class="nav-icon">&#9776;</span> Audit log</button>
+            <button class="nav-item nav-admin" data-page="users" hidden><span class="nav-icon">&#9823;</span> User accounts</button>
+            <button class="nav-item" data-page="account"><span class="nav-icon">&#9881;</span> My account</button>
+        </nav>
+
+        <div class="sidebar-foot">
+            <div class="stream-state">
+                <span id="connectionDot" class="dot dot-off"></span>
+                <span id="connectionText">Live stream: connecting</span>
+            </div>
+            <div class="muted small">Online: <span id="onlineCount">1</span> user(s)</div>
+            <div class="muted small" id="serverClock">--:--:--</div>
+        </div>
+    </aside>
+
+    <!-- ---------------- main column ---------------- -->
+    <div class="content">
+        <header class="topbar">
+            <button id="menuToggle" class="icon-btn only-mobile" aria-label="Open menu">&#9776;</button>
+            <div class="page-heading">
+                <h1 id="pageTitle">Dashboard</h1>
+                <p id="pageSubtitle" class="muted small">Live collection of the toll plaza</p>
+            </div>
+
+            <div class="topbar-actions">
+                <div class="bell-wrap">
+                    <button id="bellBtn" class="icon-btn" aria-label="Notifications" aria-expanded="false">
+                        <span aria-hidden="true">&#9993;</span>
+                        <span id="notifBadge" class="badge" hidden>0</span>
+                    </button>
+
+                    <div id="notifPanel" class="notif-panel" hidden role="dialog" aria-label="Notifications">
+                        <header class="notif-panel-head">
+                            <strong>Notifications</strong>
+                            <div class="notif-panel-actions">
+                                <button id="markAllRead" class="ghost-small">Mark all read</button>
+                                <button id="clearAllNotifs" class="ghost-small" hidden>Clear</button>
+                            </div>
+                        </header>
+                        <ul id="notifList" class="notif-list">
+                            <li class="notif-empty muted small">No notification yet.</li>
+                        </ul>
+                        <footer class="notif-panel-foot">
+                            <button id="openNotifPage" class="ghost-small">Open notification centre</button>
+                        </footer>
+                    </div>
+                </div>
+
+                <div class="user-chip">
+                    <span id="userInitials" class="avatar">--</span>
+                    <span class="user-text">
+                        <strong id="userName">--</strong>
+                        <span id="userRole" class="role-tag">--</span>
+                    </span>
+                </div>
+
+                <button id="logoutBtn" class="btn btn-ghost">Sign out</button>
+            </div>
+        </header>
+
+        <main class="page-area">
+
+            <!-- =========== DASHBOARD =========== -->
+            <section class="page" id="page-dashboard">
+                <div class="kpi-grid">
+                    <article class="card kpi">
+                        <span class="kpi-label">Payments today</span>
+                        <strong class="kpi-value" id="kpiToday">0</strong>
+                        <span class="kpi-foot" id="kpiTodayFoot">0 failed attempt(s)</span>
+                    </article>
+                    <article class="card kpi">
+                        <span class="kpi-label">Collected today</span>
+                        <strong class="kpi-value" id="kpiAmount">&mdash;</strong>
+                        <span class="kpi-foot">Average <span id="kpiAvg">&mdash;</span></span>
+                    </article>
+                    <article class="card kpi">
+                        <span class="kpi-label">Registered vehicles</span>
+                        <strong class="kpi-value" id="kpiVehicles">0</strong>
+                        <span class="kpi-foot">RFID scans: <span id="kpiScans">0</span></span>
+                    </article>
+                    <article class="card kpi">
+                        <span class="kpi-label">Barrier</span>
+                        <strong class="kpi-value" id="barrierState">CLOSED</strong>
+                        <span class="kpi-foot">Engine total <span id="kpiEngineTotal">&mdash;</span></span>
+                    </article>
+                </div>
+
+                <div class="two-col">
+                    <article class="card">
+                        <header class="card-head">
+                            <h2>Hourly activity</h2>
+                            <span class="muted small">payments per hour (server time)</span>
+                        </header>
+                        <div id="chartHourly" class="bar-chart" role="img" aria-label="Payments per hour"></div>
+                    </article>
+
+                    <article class="card">
+                        <header class="card-head">
+                            <h2>Payment modes</h2>
+                            <span class="muted small">today</span>
+                        </header>
+                        <div class="mode-chart">
+                            <svg id="chartModes" viewBox="0 0 42 42" class="doughnut" role="img" aria-label="Payment modes"></svg>
+                            <ul id="modeLegend" class="legend"></ul>
+                        </div>
+                        <h3 class="sub-head">Vehicle types today</h3>
+                        <ul id="typeList" class="legend legend-inline"></ul>
+                    </article>
+                </div>
+
+                <article class="card">
+                    <header class="card-head">
+                        <h2>Latest payment</h2>
+                        <span class="muted small" id="lastPaymentTime">&mdash;</span>
+                    </header>
+                    <div id="lastPaymentCard" class="last-payment muted">No payment collected yet.</div>
+                </article>
+
+                <article class="card">
+                    <header class="card-head">
+                        <h2>Recent payments</h2>
+                        <button class="ghost-small" data-goto="payments">Open payments page</button>
+                    </header>
+                    <div class="table-scroll">
+                        <table class="data-table" aria-label="Recent payments">
+                            <thead>
+                            <tr>
+                                <th>Receipt</th><th>Time</th><th>Vehicle</th><th>Type</th>
+                                <th>Mode</th><th class="right">Toll</th><th class="right">Paid</th><th>Operator</th>
+                            </tr>
+                            </thead>
+                            <tbody id="recentPaymentsBody">
+                            <tr><td colspan="8" class="muted center">Nothing yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <!-- =========== PAYMENTS =========== -->
+            <section class="page" id="page-payments" hidden>
+                <div class="two-col reverse">
+                    <article class="card">
+                        <header class="card-head">
+                            <h2>Collect a toll</h2>
+                            <span class="muted small">RFID &rarr; validate &rarr; calculate &rarr; pay &rarr; barrier</span>
+                        </header>
+
+                        <form id="payForm" novalidate>
+                            <label class="field">
+                                <span class="field-label">RFID tag of the vehicle</span>
+                                <span class="row">
+                                    <select id="payRfid" class="input"></select>
+                                    <button type="button" id="simulateRfidBtn" class="btn btn-ghost" title="Ask the RFID reader for the next tag">
+                                        Simulate scan
+                                    </button>
+                                </span>
+                            </label>
+                            <p id="scanHint" class="muted small">The reader can also detect the tag by itself (auto simulation runs every 7 seconds).</p>
+
+                            <fieldset class="field">
+                                <legend class="field-label">Payment mode</legend>
+                                <div class="segmented" id="payMode">
+                                    <label><input type="radio" name="mode" value="Cash" checked> <span>Cash</span></label>
+                                    <label><input type="radio" name="mode" value="UPI"> <span>UPI</span></label>
+                                    <label><input type="radio" name="mode" value="FASTag"> <span>FASTag (10% off)</span></label>
+                                </div>
+                            </fieldset>
+
+                            <div class="field" id="cashRow">
+                                <label class="field-label" for="payAmount">Cash handed over</label>
+                                <input id="payAmount" class="input" type="number" min="1" step="1" inputmode="decimal">
+                                <p class="muted small">Give less than the toll to see a rejected payment (the barrier stays closed).</p>
+                            </div>
+
+                            <div class="toll-preview" id="tollPreview">
+                                <div><span class="muted small">Vehicle</span><strong id="pvVehicle">&mdash;</strong></div>
+                                <div><span class="muted small">Base toll</span><strong id="pvBase">&mdash;</strong></div>
+                                <div><span class="muted small">Discount</span><strong id="pvDiscount">&mdash;</strong></div>
+                                <div><span class="muted small">Amount payable</span><strong id="pvPayable">&mdash;</strong></div>
+                            </div>
+
+                            <p id="payError" class="alert alert-danger" role="alert" hidden></p>
+                            <p id="paySuccess" class="alert alert-success" role="status" hidden></p>
+
+                            <button type="submit" id="payBtn" class="btn btn-primary btn-block">
+                                <span class="btn-label">Collect toll and open barrier</span>
+                                <span class="spinner" hidden></span>
+                            </button>
+                        </form>
+                    </article>
+
+                    <article class="card">
+                        <header class="card-head">
+                            <h2>Payment history</h2>
+                            <span class="row">
+                                <input id="paymentSearch" class="input small-input" type="search" placeholder="Search vehicle, receipt, mode">
+                                <button id="refreshPayments" class="btn btn-ghost">Refresh</button>
+                            </span>
+                        </header>
+                        <div class="table-scroll tall">
+                            <table class="data-table" aria-label="Payments">
+                                <thead>
+                                <tr>
+                                    <th>Receipt</th><th>Transaction</th><th>Time</th><th>Vehicle</th>
+                                    <th>RFID</th><th>Mode</th><th class="right">Paid</th><th>Operator</th>
+                                </tr>
+                                </thead>
+                                <tbody id="paymentsTableBody">
+                                <tr><td colspan="8" class="muted center">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- =========== VEHICLES =========== -->
+            <section class="page" id="page-vehicles" hidden>
+                <article class="card">
+                    <header class="card-head">
+                        <h2>Vehicles at this booth</h2>
+                        <span class="row">
+                            <input id="vehicleSearch" class="input small-input" type="search" placeholder="Search number, owner or tag">
+                            <button id="refreshVehicles" class="btn btn-ghost">Refresh</button>
+                        </span>
+                    </header>
+                    <p class="muted small">
+                        Toll rates come from the Java classes (<em>Car</em>, <em>Bike</em>, <em>Truck</em>, <em>Bus</em>)
+                        through <em>calculateToll()</em>. Only trucks and buses carry a FASTag, which is why a car
+                        cannot be charged to a wallet.
+                    </p>
+                    <div id="vehicleGrid" class="vehicle-grid"></div>
+                </article>
+            </section>
+
+            <!-- =========== NOTIFICATIONS =========== -->
+            <section class="page" id="page-notifications" hidden>
+                <article class="card">
+                    <header class="card-head">
+                        <h2>Notification centre</h2>
+                        <span class="row">
+                            <span id="notifMeta" class="muted small">0 notification(s)</span>
+                            <button id="markAllReadPage" class="btn btn-ghost">Mark all read</button>
+                            <button id="clearAllNotifsPage" class="btn btn-ghost" hidden>Empty centre</button>
+                        </span>
+                    </header>
+                    <div class="filter-row" id="notifFilters">
+                        <button class="chip is-active" data-level="all">All</button>
+                        <button class="chip" data-level="success">Success</button>
+                        <button class="chip" data-level="warning">Warning</button>
+                        <button class="chip" data-level="danger">Alert</button>
+                        <button class="chip" data-level="info">Info</button>
+                    </div>
+                    <ul id="notifPageList" class="notif-page-list">
+                        <li class="muted small">No notification yet.</li>
+                    </ul>
+                </article>
+            </section>
+
+            <!-- =========== AUDIT (admin) =========== -->
+            <section class="page" id="page-audit" hidden>
+                <article class="card">
+                    <header class="card-head">
+                        <h2>Security audit log</h2>
+                        <span class="row">
+                            <span class="muted small" id="auditFilePath">&mdash;</span>
+                            <button id="refreshAudit" class="btn btn-ghost">Refresh</button>
+                        </span>
+                    </header>
+                    <p class="muted small">
+                        Every login, failed login, logout, payment, password change and notification is appended to this file.
+                    </p>
+                    <ol id="auditList" class="audit-list"></ol>
+                </article>
+            </section>
+
+            <!-- =========== USERS (admin) =========== -->
+            <section class="page" id="page-users" hidden>
+                <div class="two-col reverse">
+                    <article class="card">
+                        <header class="card-head">
+                            <h2>Create an account</h2>
+                            <span class="muted small">minimum 8 characters with a letter and a digit</span>
+                        </header>
+                        <form id="createUserForm" novalidate>
+                            <label class="field">
+                                <span class="field-label">Username</span>
+                                <input id="newUsername" class="input" type="text" placeholder="booth2" required>
+                            </label>
+                            <label class="field">
+                                <span class="field-label">Display name</span>
+                                <input id="newDisplayName" class="input" type="text" placeholder="Booth Operator 2">
+                            </label>
+                            <label class="field">
+                                <span class="field-label">Temporary password</span>
+                                <input id="newPassword" class="input" type="text" placeholder="Booth@2026" required>
+                            </label>
+                            <label class="field">
+                                <span class="field-label">Role</span>
+                                <select id="newRole" class="input">
+                                    <option value="OPERATOR">OPERATOR - collects tolls</option>
+                                    <option value="ADMIN">ADMIN - full control</option>
+                                </select>
+                            </label>
+                            <label class="check-line">
+                                <input id="newMustChange" type="checkbox" checked>
+                                <span>Ask the user to change the password at the first login</span>
+                            </label>
+                            <p id="userError" class="alert alert-danger" hidden></p>
+                            <p id="userSuccess" class="alert alert-success" hidden></p>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <span class="btn-label">Create account</span>
+                                <span class="spinner" hidden></span>
+                            </button>
+                        </form>
+                    </article>
+
+                    <article class="card">
+                        <header class="card-head">
+                            <h2>Accounts</h2>
+                            <button id="refreshUsers" class="btn btn-ghost">Refresh</button>
+                        </header>
+                        <div class="table-scroll tall">
+                            <table class="data-table" aria-label="User accounts">
+                                <thead>
+                                <tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th>Logins</th><th>Actions</th></tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                <tr><td colspan="6" class="muted center">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- =========== ACCOUNT =========== -->
+            <section class="page" id="page-account" hidden>
+                <div class="two-col">
+                    <article class="card">
+                        <header class="card-head"><h2>My profile</h2></header>
+                        <dl id="accountInfo" class="info-list"></dl>
+                    </article>
+
+                    <article class="card">
+                        <header class="card-head"><h2>Change my password</h2></header>
+                        <form id="passwordForm" novalidate>
+                            <label class="field">
+                                <span class="field-label">Current password</span>
+                                <input id="currentPassword" class="input" type="password" autocomplete="current-password" required>
+                            </label>
+                            <label class="field">
+                                <span class="field-label">New password</span>
+                                <input id="newPassword1" class="input" type="password" autocomplete="new-password" required>
+                            </label>
+                            <label class="field">
+                                <span class="field-label">Repeat new password</span>
+                                <input id="newPassword2" class="input" type="password" autocomplete="new-password" required>
+                            </label>
+                            <p id="passwordError" class="alert alert-danger" hidden></p>
+                            <p id="passwordSuccess" class="alert alert-success" hidden></p>
+                            <button type="submit" class="btn btn-primary btn-block">
+                                <span class="btn-label">Change password</span>
+                                <span class="spinner" hidden></span>
+                            </button>
+                        </form>
+                    </article>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<!-- =====================================================================
+     RECEIPT MODAL
+     ===================================================================== -->
+<div id="receiptModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="receiptTitle">
+        <header class="modal-head">
+            <h2 id="receiptTitle">Transaction receipt</h2>
+            <button id="closeReceipt" class="icon-btn" aria-label="Close">&times;</button>
+        </header>
+        <pre id="receiptText" class="receipt"></pre>
+        <footer class="modal-foot">
+            <button id="printReceipt" class="btn btn-ghost">Print</button>
+            <button id="closeReceiptBtn" class="btn btn-primary">Done</button>
+        </footer>
+    </div>
+</div>
+
+<!-- live toast stack -->
+<div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
+
+<noscript>
+    <p class="alert alert-warning">This control room needs JavaScript to show the live data.</p>
+</noscript>
+
+<script src="/app.js"></script>
+</body>
+</html>

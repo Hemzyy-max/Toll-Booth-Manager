@@ -14,13 +14,24 @@ transaction and shows the full history.
 | Item | Value |
 |---|---|
 | Language | Core Java (Java 8 or above, verified on JDK 17) |
-| Type | Console application (no GUI) |
-| Packages | 7 (`tollbooth` + 6 sub packages) |
-| Java files | 21 |
-| Lines of code | ~3050 (with concept comments) |
-| External libraries | **None** |
-| Data storage | `transactions.txt` (text file) |
+| Type | Console application **+ real time web application** |
+| Packages | 9 (`tollbooth` + 8 sub packages) |
+| Java files | 42 |
+| Lines of code | ~7840 (with concept comments) |
+| External libraries | **None** (the web server is `com.sun.net.httpserver` of the JDK) |
+| Data storage | `transactions.txt`, `data/users.json`, `data/audit.log` |
 | Concepts demonstrated | Encapsulation, Inheritance, Polymorphism, Abstraction, Interface, Constructor, Overloading, Overriding, Exception Handling, Collections, File Handling, Multithreading |
+
+### Two applications from one project
+
+| Application | Start command | What it does |
+|---|---|---|
+| **Console (OOPJ laboratory project)** | `java -cp out tollbooth.TollBoothManager` | The 10 option menu project described in this README |
+| **Real time web application** | `java -cp out tollbooth.web.WebLauncher` | Browser control room with a **login system** (PBKDF2 passwords, sessions, roles), **live notifications** pushed with Server Sent Events, toll payments driven from the browser, dashboard, audit log and user management |
+
+Both applications share the same Java classes, so a toll calculated in the browser
+is the same toll as in the console. See
+[`docs/REALTIME_WEB.md`](docs/REALTIME_WEB.md) for the web layer.
 
 ---
 
@@ -82,6 +93,20 @@ design easy to explain in a viva.
 | 11 | Multithreading (many vehicles together) | `thread/VehicleProcessingThread.java`, menu option 9 |
 | 12 | File handling | `service/TransactionFileManager.java` → `transactions.txt` |
 
+### The optional web layer (same OOP concepts, in a browser)
+The real time application adds 13 more classes, and it reuses every concept of the
+table above instead of re-writing the toll logic:
+
+| Concept | Web layer example |
+|---|---|
+| Interface | the JDK `HttpHandler` is implemented by every end point class |
+| Inheritance + abstraction | every end point extends the abstract `ApiHandler`, which runs the common steps (`doHandle()` is the abstract method) |
+| Polymorphism | `TollPaymentService` builds a `CashPayment`, `UPIPayment` or `FastagPayment` behind the `PaymentProcessor` reference, exactly like the console project |
+| Encapsulation | `User` never exposes the password hash; `SessionManager` hides the token map; `WebContext` exposes only getters |
+| Collections | `ConcurrentHashMap` for sessions, `CopyOnWriteArrayList` for the live connections, `ConcurrentLinkedDeque` for the notification centre |
+| Exception handling | two custom web exceptions (`WebAuthException`, `InvalidPaymentAmountException`) are translated into HTTP 401 / 403 / 429 / 400 codes in one place |
+| Multithreading | one thread per HTTP request, one thread per live stream, a housekeeping thread, `synchronized` payment methods |
+
 ---
 
 ## 3. Project Folder Structure
@@ -123,18 +148,48 @@ Toll-Booth-Manager/
 │   ├── thread/                         <- MULTITHREADING
 │   │   └── VehicleProcessingThread.java <- extends Thread, one thread per vehicle
 │   │
-│   └── TollBoothManager.java           <- MAIN CLASS : menu + Scanner (user interface)
+│   ├── web/                            <- REAL TIME WEB APPLICATION (optional layer)
+│   │   ├── WebLauncher.java             <- main class of the web application
+│   │   ├── TollBoothServer.java         <- JDK HttpServer, routes, shutdown hook
+│   │   ├── WebContext.java              <- holds every service object in one place
+│   │   ├── ApiHandlers.java             <- all REST end points (abstract ApiHandler + children)
+│   │   ├── StaticHandler.java           <- serves the web page from the classpath
+│   │   ├── HttpSupport.java             <- request / response helpers + security headers
+│   │   ├── Json.java                    <- small JSON writer and parser (JDK only)
+│   │   ├── User.java                    <- one login account (role, hashes, status)
+│   │   ├── UserStore.java               <- accounts in a ConcurrentHashMap + users.json
+│   │   ├── PasswordHasher.java          <- PBKDF2-SHA256 with salt and iterations
+│   │   ├── SessionManager.java          <- login sessions with expiry and revocation
+│   │   ├── LoginGuard.java              <- brute force lockout
+│   │   ├── AuditLog.java                <- security log (data/audit.log)
+│   │   ├── EventHub.java                <- the LIVE part : SSE clients and broadcasts
+│   │   ├── Notification.java            <- one notification (level, category, audience)
+│   │   ├── NotificationCentre.java      <- the notification centre of the project
+│   │   ├── PaymentRecord.java           <- one web payment (receipt, JSON form)
+│   │   ├── TollPaymentService.java      <- the toll workflow for the browser
+│   │   ├── TollBoothEngine.java         <- bridge to TollBooth + RFID simulator
+│   │   └── exception/                   <- web exceptions (auth, amount)
+│   │
+│   └── TollBoothManager.java           <- MAIN CLASS of the console project
+│
+├── resources/static/                   <- the web page (no framework, no build step)
+│   ├── index.html                       <- login screen + single page application
+│   ├── styles.css                       <- the whole design of the control room
+│   ├── app.js                           <- REST calls, live event stream, charts
+│   └── favicon.svg
 │
 ├── docs/                               <- documentation for the report and the viva
 │   ├── OOP_CONCEPTS.md                  <- every concept explained with code references
 │   ├── CLASS_EXPLANATIONS.md            <- explanation of every major class
+│   ├── REALTIME_WEB.md                  <- login system, notification centre, deployment
 │   ├── SAMPLE_INPUT_OUTPUT.md           <- complete sample input and output
-│   └── VIVA_QUESTIONS.md                <- 40 viva questions with answers
+│   └── VIVA_QUESTIONS.md                <- viva questions with answers
 │
-├── compile-and-run.sh                  <- one command compile + run (Linux / Mac)
-├── compile-and-run.bat                 <- one command compile + run (Windows)
-├── README.md                           <- this file
-└── transactions.txt                    <- created automatically at the first run
+├── compile-and-run.sh / .bat            <- compile + run the CONSOLE application
+├── run-web.sh / .bat                    <- compile + run the REAL TIME WEB application
+├── README.md                            <- this file
+├── transactions.txt                     <- created automatically at the first run
+└── data/                                <- created automatically : users.json, audit.log
 ```
 
 > The package name matches the folder name exactly:
@@ -211,6 +266,42 @@ Check it with:
 java -version
 javac -version
 ```
+
+### The real time web application (browser)
+
+```bash
+./run-web.sh                 # Linux / macOS : compiles and serves on port 3000
+PORT=8080 ./run-web.sh       # another port
+```
+
+```bat
+run-web.bat                  REM Windows
+```
+
+Then open `http://localhost:3000` and sign in. The first start creates two
+accounts and prints them in the console:
+
+| Username | Password | Role |
+|---|---|---|
+| `admin` | `Admin@123` | ADMIN — full control (users, audit log, FASTag block) |
+| `operator` | `Operator@123` | OPERATOR — collects tolls |
+
+Manual equivalent:
+
+```bash
+javac -d out $(find tollbooth -name "*.java")     # compile everything
+cp -r resources/static out/static                 # copy the web page next to the classes
+java -cp out tollbooth.web.WebLauncher --port 3000
+```
+
+What you get in the browser: a **login system** with PBKDF2 password hashing,
+session tokens, brute force lockout and roles; a **live dashboard**; toll payment
+from the browser (Cash / UPI / FASTag with the real rates and the FASTag
+discount); a **notification centre** that receives every payment, login and alert
+**instantly** (Server Sent Events); an audit log and user management for
+administrators. Full details: [`docs/REALTIME_WEB.md`](docs/REALTIME_WEB.md).
+
+### The console application
 
 ### Windows (Command Prompt)
 
@@ -576,8 +667,9 @@ demonstrated immediately:
 |---|---|
 | [`docs/OOP_CONCEPTS.md`](docs/OOP_CONCEPTS.md) | Every OOP concept explained with the exact code from this project |
 | [`docs/CLASS_EXPLANATIONS.md`](docs/CLASS_EXPLANATIONS.md) | Explanation of every major class, its data members and its methods |
+| [`docs/REALTIME_WEB.md`](docs/REALTIME_WEB.md) | The web layer: architecture, SSE, login system and security, notification centre, REST API, deployment, viva questions |
 | [`docs/SAMPLE_INPUT_OUTPUT.md`](docs/SAMPLE_INPUT_OUTPUT.md) | Complete sample input and the real output of a full session |
-| [`docs/VIVA_QUESTIONS.md`](docs/VIVA_QUESTIONS.md) | 40 questions with short, exam ready answers |
+| [`docs/VIVA_QUESTIONS.md`](docs/VIVA_QUESTIONS.md) | 50 questions with short, exam ready answers |
 
 ---
 

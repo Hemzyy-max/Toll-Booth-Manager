@@ -9,8 +9,14 @@ bin/
 # Transaction data file created automatically at run time
 transactions.txt
 
+# Runtime data folder : user accounts (salted PBKDF2 hashes) and the audit log
+data/
+
 # Editor / IDE folders
 .idea/
 .vscode/
 *.iml
 nbproject/
+
+# Node modules (only used for the optional browser test of the web page)
+node_modules/
