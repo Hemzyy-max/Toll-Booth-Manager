@@ -122,6 +122,15 @@ public final class HttpSupport {
         return query(exchange).get("token");
     }
 
+    /**
+     * TRUE when the request is a HEAD request. A HEAD request asks for the
+     * headers only, so no body may be written; this is how health checkers and
+     * some monitors test a server.
+     */
+    public static boolean isHeadRequest(HttpExchange exchange) {
+        return "HEAD".equalsIgnoreCase(exchange.getRequestMethod());
+    }
+
     /** The real client address (the preview proxy sends X-Forwarded-For). */
     public static String clientAddress(HttpExchange exchange) {
         String forwarded = exchange.getRequestHeaders().getFirst("X-Forwarded-For");
@@ -151,7 +160,12 @@ public final class HttpSupport {
         headers.set("Content-Type", "application/json; charset=utf-8");
         headers.set("Cache-Control", "no-store");
         addSecurityHeaders(headers);
-        exchange.sendResponseHeaders(status, bytes.length);
+        boolean head = isHeadRequest(exchange);
+        exchange.sendResponseHeaders(status, head ? -1 : bytes.length);
+        if (head) {
+            exchange.close();
+            return;
+        }
         try (OutputStream output = exchange.getResponseBody()) {
             output.write(bytes);
         }
@@ -169,7 +183,12 @@ public final class HttpSupport {
         headers.set("Content-Type", "text/plain; charset=utf-8");
         headers.set("Cache-Control", "no-store");
         addSecurityHeaders(headers);
-        exchange.sendResponseHeaders(status, bytes.length);
+        boolean head = isHeadRequest(exchange);
+        exchange.sendResponseHeaders(status, head ? -1 : bytes.length);
+        if (head) {
+            exchange.close();
+            return;
+        }
         try (OutputStream output = exchange.getResponseBody()) {
             output.write(bytes);
         }
@@ -182,7 +201,12 @@ public final class HttpSupport {
         headers.set("Content-Type", contentType);
         headers.set("Cache-Control", cache ? "public, max-age=300" : "no-store");
         addSecurityHeaders(headers);
-        exchange.sendResponseHeaders(status, bytes.length);
+        boolean head = isHeadRequest(exchange);
+        exchange.sendResponseHeaders(status, head ? -1 : bytes.length);
+        if (head) {
+            exchange.close();
+            return;
+        }
         try (OutputStream output = exchange.getResponseBody()) {
             output.write(bytes);
         }

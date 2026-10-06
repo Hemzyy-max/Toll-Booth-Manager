@@ -47,6 +47,18 @@ public class StaticHandler implements HttpHandler {
     public void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
 
+        // The browser asks for /favicon.ico on its own : answer with the icon
+        // stored in the project, so no unnecessary 404 appears in the browser
+        // developer console.
+        if (path.equals("/favicon.ico")) {
+            byte[] icon = readResource("favicon.svg");
+            if (icon != null) {
+                HttpSupport.sendResource(exchange, 200, icon, "image/svg+xml", true);
+                exchange.close();
+                return;
+            }
+        }
+
         if (path.startsWith("/api/")) {
             HttpSupport.sendError(exchange, 404, "Unknown API end point : " + path);
             return;

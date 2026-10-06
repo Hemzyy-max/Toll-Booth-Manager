@@ -6,6 +6,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 /**
@@ -83,6 +84,22 @@ public class TollBoothServer {
 
     /** Registers all the routes. */
     private void registerEndpoints() {
+        // --- health check end points ---------------------------------------
+        // A hosting platform (or a load balancer) calls one of these to decide
+        // whether the application is alive. They must ALWAYS answer 200, so the
+        // page is never replaced by a "404 not found" screen.
+        HttpHandler healthCheck = exchange -> HttpSupport.sendJson(exchange, 200, Json.obj()
+                .put("status", "UP")
+                .put("application", "IoT Based Toll Booth Manager")
+                .put("uptimeSeconds", context.getUptimeSeconds())
+                .put("vehicles", context.getEngine().getVehicleCount())
+                .put("liveStreams", context.getEventHub().clientCount())
+                .put("serverTime", java.time.LocalDateTime.now().toString()));
+        httpServer.createContext("/health", healthCheck);
+        httpServer.createContext("/healthz", healthCheck);
+        httpServer.createContext("/api/health", healthCheck);
+        httpServer.createContext("/api/ping", healthCheck);
+
         // --- REST API -----------------------------------------------------
         httpServer.createContext("/api/login", new ApiHandlers.LoginHandler(context));
         httpServer.createContext("/api/logout", new ApiHandlers.LogoutHandler(context));
