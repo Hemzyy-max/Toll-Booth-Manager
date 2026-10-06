@@ -6,6 +6,11 @@ name: Publish the static demo
 # public link for the same static demo copy, so the page can be shown on a phone
 # without a Firebase account.
 #
+# ONE MANUAL STEP IS NEEDED FIRST : open
+#     Settings -> Pages -> Build and deployment -> Source : GitHub Actions
+# Until that is done the workflow finishes with a green "notice" and publishes
+# nothing, so no push turns red.
+#
 # What is published : the unchanged page (index.html, app.js, styles.css) plus
 # demo-backend.js, which answers every /api/... call inside the browser. The page
 # shows a DEMO MODE badge, because no Java server runs here. GitHub Pages cannot
@@ -36,6 +41,8 @@ jobs:
   build:
     name: Build the demo folder
     runs-on: ubuntu-latest
+    outputs:
+      pages: ${{ steps.pages.outcome }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -43,17 +50,30 @@ jobs:
       - name: Copy the page next to the demo backend
         run: bash deploy/firebase/sync-public.sh
 
+      # This action fails while Pages is switched off, which must not break the
+      # build, so the failure is caught and reported as a notice instead.
       - name: Prepare Pages
+        id: pages
+        continue-on-error: true
         uses: actions/configure-pages@v5
 
       - name: Upload the demo folder
+        if: steps.pages.outcome == 'success'
         uses: actions/upload-pages-artifact@v3
         with:
           path: deploy/firebase/public-demo
 
+      - name: Explain what to do when Pages is off
+        if: steps.pages.outcome != 'success'
+        run: |
+          echo "::notice title=GitHub Pages is not switched on::Open Settings -> Pages ->" \
+               "Build and deployment -> Source : GitHub Actions, then run this workflow" \
+               "again (docs/DEPLOY_PUBLIC.md, option C). Nothing was published."
+
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: needs.build.outputs.pages == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
